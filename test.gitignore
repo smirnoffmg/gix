@@ -1,0 +1,32 @@
+# Logs
+*.log
+logs/
+
+# Build outputs
+build/
+BUILD/
+dist/
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+*.swp
+
+# Comments
+# This is a comment
+# Another comment
+
+# More patterns
+build/ 

@@ -69,7 +69,9 @@ pub enum OptimizationMode {
 impl Args {
     /// Get the input file path, defaulting to .gitignore in current directory
     pub fn input_file(&self) -> PathBuf {
-        self.file.clone().unwrap_or_else(|| PathBuf::from(".gitignore"))
+        self.file
+            .clone()
+            .unwrap_or_else(|| PathBuf::from(".gitignore"))
     }
 
     /// Get the output file path
@@ -157,4 +159,4 @@ mod tests {
         let args = Args::parse_from(&["gix", "--show-categories"]);
         assert!(args.show_categories);
     }
-} 
+}

@@ -38,4 +38,4 @@ mod tests {
         assert!(!patterns_equivalent_case_sensitive("*.log", "*.LOG"));
         assert!(!patterns_equivalent_case_sensitive("*.log", "*.txt"));
     }
-} 
+}

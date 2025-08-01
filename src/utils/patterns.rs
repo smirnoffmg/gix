@@ -27,4 +27,4 @@ mod tests {
         assert!(patterns_conflict("*.log", "*.log"));
         assert!(!patterns_conflict("*.log", "*.txt"));
     }
-} 
+}

@@ -2,4 +2,4 @@ pub mod errors;
 pub mod gitignore;
 
 pub use errors::GixError;
-pub use gitignore::{GitignoreEntry, GitignoreFile, EntryType}; 
+pub use gitignore::{EntryType, GitignoreEntry, GitignoreFile};

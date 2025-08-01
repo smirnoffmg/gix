@@ -4,12 +4,14 @@ use crate::models::GixError;
 pub fn validate_pattern(pattern: &str) -> Result<(), GixError> {
     // Basic validation - ensure pattern is not empty after trimming
     if pattern.trim().is_empty() {
-        return Err(GixError::InvalidPattern("Pattern cannot be empty".to_string()));
+        return Err(GixError::InvalidPattern(
+            "Pattern cannot be empty".to_string(),
+        ));
     }
-    
+
     // Check for invalid characters or patterns
     // This is a basic implementation - could be expanded for more complex validation
-    
+
     Ok(())
 }
 
@@ -43,4 +45,4 @@ mod tests {
         assert!(!is_valid_pattern(""));
         assert!(!is_valid_pattern("   "));
     }
-} 
+}

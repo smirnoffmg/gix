@@ -90,24 +90,29 @@ impl GitignoreFile {
         self.entries.iter().filter(|e| e.is_comment()).collect()
     }
 
-    /// Convert back to string representation
-    pub fn to_string(&self) -> String {
-        self.entries
+}
+
+impl std::fmt::Display for GitignoreFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let content = self.entries
             .iter()
             .map(|entry| entry.original.clone())
             .collect::<Vec<_>>()
-            .join("\n")
+            .join("\n");
+        write!(f, "{}", content)
     }
+}
 
+impl GitignoreFile {
     /// Find duplicate patterns
     pub fn find_duplicates(&self) -> HashMap<String, Vec<usize>> {
         let mut duplicates: HashMap<String, Vec<usize>> = HashMap::new();
-        
+
         for entry in &self.entries {
             if let Some(normalized) = entry.normalized_pattern() {
                 duplicates
                     .entry(normalized)
-                    .or_insert_with(Vec::new)
+                    .or_default()
                     .push(entry.line_number);
             }
         }
@@ -210,7 +215,7 @@ mod tests {
     #[test]
     fn test_add_entries() {
         let mut file = GitignoreFile::new();
-        
+
         file.add_entry(GitignoreEntry::new(
             "*.log".to_string(),
             EntryType::Pattern("*.log".to_string()),
@@ -233,7 +238,7 @@ mod tests {
     #[test]
     fn test_find_duplicates() {
         let mut file = GitignoreFile::new();
-        
+
         // Add duplicate patterns
         file.add_entry(GitignoreEntry::new(
             "*.log".to_string(),
@@ -376,4 +381,4 @@ mod tests {
         let duplicates = file.find_duplicates();
         assert_eq!(duplicates.len(), 0);
     }
-} 
+}

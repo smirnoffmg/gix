@@ -1,10 +1,11 @@
+use crate::core::pattern_analyzer::{PatternAnalysis, PatternAnalyzer};
 use crate::models::{GitignoreFile, GixError};
-use crate::core::pattern_analyzer::{PatternAnalyzer, PatternAnalysis};
-use std::collections::{HashSet, HashMap};
+use std::collections::{HashMap, HashSet};
 
 /// Optimize a gitignore file by removing duplicate patterns while preserving structure
 pub fn optimize_gitignore(file: &GitignoreFile) -> Result<GitignoreFile, GixError> {
-    let analyzer = PatternAnalyzer::default();
+    // Use a non-normalizing analyzer to preserve whitespace differences
+    let analyzer = PatternAnalyzer::new(false, true);
     optimize_gitignore_with_analyzer(file, &analyzer)
 }
 
@@ -15,11 +16,14 @@ pub fn optimize_gitignore_aggressive(file: &GitignoreFile) -> Result<GitignoreFi
 }
 
 /// Optimize a gitignore file using a specific pattern analyzer
-pub fn optimize_gitignore_with_analyzer(file: &GitignoreFile, analyzer: &PatternAnalyzer) -> Result<GitignoreFile, GixError> {
+pub fn optimize_gitignore_with_analyzer(
+    file: &GitignoreFile,
+    analyzer: &PatternAnalyzer,
+) -> Result<GitignoreFile, GixError> {
     let mut optimized = GitignoreFile::new();
     let mut seen_patterns: HashSet<String> = HashSet::new();
     let mut pattern_analyses: HashMap<String, PatternAnalysis> = HashMap::new();
-    
+
     // First pass: collect all patterns and their analyses
     for entry in &file.entries {
         if let crate::models::EntryType::Pattern(pattern) = &entry.entry_type {
@@ -27,14 +31,14 @@ pub fn optimize_gitignore_with_analyzer(file: &GitignoreFile, analyzer: &Pattern
             pattern_analyses.insert(pattern.clone(), analysis);
         }
     }
-    
+
     // Second pass: deduplicate patterns using analysis
     for entry in &file.entries {
         match &entry.entry_type {
             crate::models::EntryType::Pattern(pattern) => {
                 let analysis = &pattern_analyses[pattern];
                 let normalized = &analysis.normalized;
-                
+
                 // Use normalized pattern for deduplication to improve performance
                 if !seen_patterns.contains(normalized) {
                     seen_patterns.insert(normalized.clone());
@@ -47,17 +51,20 @@ pub fn optimize_gitignore_with_analyzer(file: &GitignoreFile, analyzer: &Pattern
             }
         }
     }
-    
+
     Ok(optimized)
 }
 
 /// Optimize a gitignore file with aggressive deduplication using a specific analyzer
-pub fn optimize_gitignore_aggressive_with_analyzer(file: &GitignoreFile, analyzer: &PatternAnalyzer) -> Result<GitignoreFile, GixError> {
+pub fn optimize_gitignore_aggressive_with_analyzer(
+    file: &GitignoreFile,
+    analyzer: &PatternAnalyzer,
+) -> Result<GitignoreFile, GixError> {
     let mut optimized = GitignoreFile::new();
     let mut seen_patterns: HashSet<String> = HashSet::new();
     let mut seen_comments: HashSet<String> = HashSet::new();
     let mut pattern_analyses: HashMap<String, PatternAnalysis> = HashMap::new();
-    
+
     // First pass: collect all patterns and their analyses
     for entry in &file.entries {
         if let crate::models::EntryType::Pattern(pattern) = &entry.entry_type {
@@ -65,14 +72,14 @@ pub fn optimize_gitignore_aggressive_with_analyzer(file: &GitignoreFile, analyze
             pattern_analyses.insert(pattern.clone(), analysis);
         }
     }
-    
+
     // Second pass: aggressive deduplication
     for entry in &file.entries {
         match &entry.entry_type {
             crate::models::EntryType::Pattern(pattern) => {
                 let analysis = &pattern_analyses[pattern];
                 let normalized = &analysis.normalized;
-                
+
                 // Use normalized pattern for deduplication to improve performance
                 if !seen_patterns.contains(normalized) {
                     seen_patterns.insert(normalized.clone());
@@ -81,7 +88,7 @@ pub fn optimize_gitignore_aggressive_with_analyzer(file: &GitignoreFile, analyze
             }
             crate::models::EntryType::Comment(comment) => {
                 let normalized = comment.trim();
-                
+
                 // Only deduplicate identical comments
                 if !seen_comments.contains(normalized) {
                     seen_comments.insert(normalized.to_string());
@@ -90,24 +97,30 @@ pub fn optimize_gitignore_aggressive_with_analyzer(file: &GitignoreFile, analyze
             }
             crate::models::EntryType::Blank => {
                 // Preserve blank lines but limit consecutive ones
-                if optimized.entries.is_empty() || 
-                   !matches!(optimized.entries.last().unwrap().entry_type, crate::models::EntryType::Blank) {
+                if optimized.entries.is_empty()
+                    || !matches!(
+                        optimized.entries.last().unwrap().entry_type,
+                        crate::models::EntryType::Blank
+                    )
+                {
                     optimized.add_entry(entry.clone());
                 }
             }
         }
     }
-    
+
     Ok(optimized)
 }
 
 /// Optimize a gitignore file with conflict detection
-pub fn optimize_gitignore_with_conflicts(file: &GitignoreFile) -> Result<(GitignoreFile, Vec<(String, String)>), GixError> {
+pub fn optimize_gitignore_with_conflicts(
+    file: &GitignoreFile,
+) -> Result<(GitignoreFile, Vec<(String, String)>), GixError> {
     let analyzer = PatternAnalyzer::default();
     let mut optimized = GitignoreFile::new();
     let mut seen_patterns: HashSet<String> = HashSet::new();
     let mut pattern_analyses: HashMap<String, PatternAnalysis> = HashMap::new();
-    
+
     // First pass: collect all patterns and their analyses
     for entry in &file.entries {
         if let crate::models::EntryType::Pattern(pattern) = &entry.entry_type {
@@ -115,9 +128,11 @@ pub fn optimize_gitignore_with_conflicts(file: &GitignoreFile) -> Result<(Gitign
             pattern_analyses.insert(pattern.clone(), analysis);
         }
     }
-    
+
     // Find conflicts
-    let pattern_strings: Vec<String> = file.entries.iter()
+    let pattern_strings: Vec<String> = file
+        .entries
+        .iter()
         .filter_map(|entry| {
             if let crate::models::EntryType::Pattern(pattern) = &entry.entry_type {
                 Some(pattern.clone())
@@ -126,16 +141,38 @@ pub fn optimize_gitignore_with_conflicts(file: &GitignoreFile) -> Result<(Gitign
             }
         })
         .collect();
-    
+
     let conflicts = analyzer.find_conflicts(&pattern_strings);
-    
-    // Second pass: deduplicate patterns using analysis
+
+    // Create a set of patterns to exclude (conflicting patterns)
+    let mut exclude_patterns: HashSet<String> = HashSet::new();
+    for (pattern1, pattern2) in &conflicts {
+        // For conflicting patterns, exclude the negation pattern (keep the non-negation)
+        let analysis1 = &pattern_analyses[pattern1];
+        let analysis2 = &pattern_analyses[pattern2];
+
+        if analysis1.is_negation && !analysis2.is_negation {
+            exclude_patterns.insert(pattern1.clone());
+        } else if analysis2.is_negation && !analysis1.is_negation {
+            exclude_patterns.insert(pattern2.clone());
+        } else {
+            // If both are negation or both are non-negation, exclude the second one
+            exclude_patterns.insert(pattern2.clone());
+        }
+    }
+
+    // Second pass: deduplicate patterns using analysis, excluding conflicting ones
     for entry in &file.entries {
         match &entry.entry_type {
             crate::models::EntryType::Pattern(pattern) => {
+                // Skip patterns that are part of conflicts
+                if exclude_patterns.contains(pattern) {
+                    continue;
+                }
+
                 let analysis = &pattern_analyses[pattern];
                 let normalized = &analysis.normalized;
-                
+
                 // Use normalized pattern for deduplication to improve performance
                 if !seen_patterns.contains(normalized) {
                     seen_patterns.insert(normalized.clone());
@@ -148,7 +185,7 @@ pub fn optimize_gitignore_with_conflicts(file: &GitignoreFile) -> Result<(Gitign
             }
         }
     }
-    
+
     Ok((optimized, conflicts))
 }
 
@@ -156,16 +193,18 @@ pub fn optimize_gitignore_with_conflicts(file: &GitignoreFile) -> Result<(Gitign
 pub fn analyze_gitignore(file: &GitignoreFile) -> Result<GitignoreAnalysis, GixError> {
     let analyzer = PatternAnalyzer::default();
     let mut analysis = GitignoreAnalysis::new();
-    
+
     for entry in &file.entries {
         if let crate::models::EntryType::Pattern(pattern) = &entry.entry_type {
             let pattern_analysis = analyzer.analyze_pattern(pattern);
             analysis.add_pattern_analysis(pattern_analysis);
         }
     }
-    
+
     // Find conflicts
-    let pattern_strings: Vec<String> = file.entries.iter()
+    let pattern_strings: Vec<String> = file
+        .entries
+        .iter()
         .filter_map(|entry| {
             if let crate::models::EntryType::Pattern(pattern) = &entry.entry_type {
                 Some(pattern.clone())
@@ -174,9 +213,9 @@ pub fn analyze_gitignore(file: &GitignoreFile) -> Result<GitignoreAnalysis, GixE
             }
         })
         .collect();
-    
+
     analysis.conflicts = analyzer.find_conflicts(&pattern_strings);
-    
+
     Ok(analysis)
 }
 
@@ -226,45 +265,45 @@ impl GitignoreAnalysis {
             pattern_analyses: Vec::new(),
         }
     }
-    
+
     pub fn add_pattern_analysis(&mut self, analysis: PatternAnalysis) {
         self.total_patterns += 1;
-        
+
         match analysis.pattern_type {
             crate::core::pattern_analyzer::PatternType::File => self.file_patterns += 1,
             crate::core::pattern_analyzer::PatternType::Directory => self.directory_patterns += 1,
             crate::core::pattern_analyzer::PatternType::Both => self.both_patterns += 1,
         }
-        
+
         if analysis.is_negation {
             self.negation_patterns += 1;
         }
-        
+
         if analysis.is_absolute {
             self.absolute_patterns += 1;
         }
-        
+
         if analysis.has_wildcards {
             self.wildcard_patterns += 1;
         }
-        
+
         if analysis.has_globstar {
             self.globstar_patterns += 1;
         }
-        
+
         if analysis.is_case_sensitive {
             self.case_sensitive_patterns += 1;
         } else {
             self.case_insensitive_patterns += 1;
         }
-        
+
         self.pattern_analyses.push(analysis);
     }
-    
+
     pub fn has_conflicts(&self) -> bool {
         !self.conflicts.is_empty()
     }
-    
+
     pub fn conflict_count(&self) -> usize {
         self.conflicts.len()
     }
@@ -286,7 +325,7 @@ mod tests {
         let content = "*.log\n*.log\nbuild/";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
     }
@@ -296,7 +335,7 @@ mod tests {
         let content = "*.log\n# Logs\n*.log\nbuild/";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 3);
         assert_eq!(optimized.stats.pattern_lines, 2);
         assert_eq!(optimized.stats.comment_lines, 1);
@@ -307,7 +346,7 @@ mod tests {
         let content = "*.log\n\n*.log\nbuild/";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 3);
         assert_eq!(optimized.stats.pattern_lines, 2);
         assert_eq!(optimized.stats.blank_lines, 1);
@@ -318,7 +357,7 @@ mod tests {
         let content = "build/\nBUILD/";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         // Case-sensitive patterns should both be preserved
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
@@ -329,7 +368,7 @@ mod tests {
         let content = "*.log \n*.log";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         // Patterns with different whitespace should both be preserved
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
@@ -340,7 +379,7 @@ mod tests {
         let content = "*.log\n!debug.log\n*.log";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         // Negation patterns should be preserved
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
@@ -351,7 +390,7 @@ mod tests {
         let content = "\\#notacomment\n\\!notnegation";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         // Escaped patterns should be preserved
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
@@ -362,11 +401,13 @@ mod tests {
         let content = "*.log\n!*.log\nbuild/";
         let file = parse_gitignore(content).unwrap();
         let (optimized, conflicts) = optimize_gitignore_with_conflicts(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(conflicts.len(), 1);
-        assert!((conflicts[0].0 == "*.log" && conflicts[0].1 == "!*.log") ||
-                (conflicts[0].0 == "!*.log" && conflicts[0].1 == "*.log"));
+        assert!(
+            (conflicts[0].0 == "*.log" && conflicts[0].1 == "!*.log")
+                || (conflicts[0].0 == "!*.log" && conflicts[0].1 == "*.log")
+        );
     }
 
     #[test]
@@ -374,7 +415,7 @@ mod tests {
         let content = "*.log\nbuild/\n!debug.log\n# comment";
         let file = parse_gitignore(content).unwrap();
         let analysis = analyze_gitignore(&file).unwrap();
-        
+
         assert_eq!(analysis.total_patterns, 3);
         assert_eq!(analysis.negation_patterns, 1);
         assert_eq!(analysis.conflict_count(), 1);
@@ -387,7 +428,7 @@ mod tests {
         let content = "*.log\n*.log";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 1);
         assert_eq!(optimized.stats.pattern_lines, 1);
         assert_eq!(optimized.entries[0].original, "*.log");
@@ -398,7 +439,7 @@ mod tests {
         let content = "*.log\n*.log\n# comment";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 1);
         assert_eq!(optimized.stats.comment_lines, 1);
@@ -411,7 +452,7 @@ mod tests {
         let content = "*.log\n!debug.log";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
         assert_eq!(optimized.entries[0].original, "*.log");
@@ -423,7 +464,7 @@ mod tests {
         let content = "/build\nbuild";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
         assert_eq!(optimized.entries[0].original, "/build");
@@ -435,7 +476,7 @@ mod tests {
         let content = "*.log \n*.log";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         // These should be treated as different patterns due to trailing space
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
@@ -448,7 +489,7 @@ mod tests {
         let content = "*.swp\n*.log\n*.swp";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
         assert_eq!(optimized.entries[0].original, "*.swp");
@@ -460,7 +501,7 @@ mod tests {
         let content = "node_modules/\n**/node_modules/";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
         assert_eq!(optimized.entries[0].original, "node_modules/");
@@ -472,7 +513,7 @@ mod tests {
         let content = "/tmp\n/tmp/";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
         assert_eq!(optimized.entries[0].original, "/tmp");
@@ -484,7 +525,7 @@ mod tests {
         let content = "build/\nbuild/";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 1);
         assert_eq!(optimized.stats.pattern_lines, 1);
         assert_eq!(optimized.entries[0].original, "build/");
@@ -495,7 +536,7 @@ mod tests {
         let content = "build/\nBUILD/";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
         assert_eq!(optimized.entries[0].original, "build/");
@@ -507,7 +548,7 @@ mod tests {
         let content = "# comment\n\n*.log\n";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 3);
         assert_eq!(optimized.stats.comment_lines, 1);
         assert_eq!(optimized.stats.blank_lines, 1);
@@ -519,7 +560,7 @@ mod tests {
         let content = "Данные/\n*.лог";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
         assert_eq!(optimized.entries[0].original, "Данные/");
@@ -531,7 +572,7 @@ mod tests {
         let content = "# 📝\n*.md\n*.md";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.comment_lines, 1);
         assert_eq!(optimized.stats.pattern_lines, 1);
@@ -544,10 +585,10 @@ mod tests {
         let content = "foo\nfoo\n!foo";
         let file = parse_gitignore(content).unwrap();
         let optimized = optimize_gitignore(&file).unwrap();
-        
+
         assert_eq!(optimized.entries.len(), 2);
         assert_eq!(optimized.stats.pattern_lines, 2);
         assert_eq!(optimized.entries[0].original, "foo");
         assert_eq!(optimized.entries[1].original, "!foo");
     }
-} 
+}

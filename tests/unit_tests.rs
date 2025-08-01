@@ -1,6 +1,6 @@
 use gix::{
-    core::{parse_gitignore, optimize_gitignore},
-    models::gitignore::{GitignoreEntry, FileStats, EntryType},
+    core::{optimize_gitignore, parse_gitignore},
+    models::gitignore::{EntryType, FileStats, GitignoreEntry},
 };
 
 // Unit tests following TDD principles - testing individual components
@@ -11,10 +11,10 @@ mod parser_tests {
     fn should_parse_empty_content() {
         // Arrange: Empty content
         let content = "";
-        
+
         // Act: Parse the content
         let result = parse_gitignore(content);
-        
+
         // Assert: Should succeed with empty file
         assert!(result.is_ok());
         let file = result.unwrap();
@@ -26,10 +26,10 @@ mod parser_tests {
     fn should_parse_single_pattern() {
         // Arrange: Single pattern
         let content = "*.log";
-        
+
         // Act: Parse the content
         let result = parse_gitignore(content);
-        
+
         // Assert: Should parse correctly
         assert!(result.is_ok());
         let file = result.unwrap();
@@ -42,10 +42,10 @@ mod parser_tests {
     fn should_parse_comment_line() {
         // Arrange: Comment line
         let content = "# This is a comment";
-        
+
         // Act: Parse the content
         let result = parse_gitignore(content);
-        
+
         // Assert: Should parse comment correctly
         assert!(result.is_ok());
         let file = result.unwrap();
@@ -58,10 +58,10 @@ mod parser_tests {
     fn should_parse_blank_line() {
         // Arrange: Blank line
         let content = "\n";
-        
+
         // Act: Parse the content
         let result = parse_gitignore(content);
-        
+
         // Assert: Should parse blank line correctly
         assert!(result.is_ok());
         let file = result.unwrap();
@@ -73,10 +73,10 @@ mod parser_tests {
     fn should_parse_multiple_lines() {
         // Arrange: Multiple lines with different types
         let content = "*.log\n# comment\n\nbuild/";
-        
+
         // Act: Parse the content
         let result = parse_gitignore(content);
-        
+
         // Assert: Should parse all lines correctly
         assert!(result.is_ok());
         let file = result.unwrap();
@@ -94,10 +94,10 @@ mod optimizer_tests {
     fn should_optimize_empty_file() {
         // Arrange: Empty gitignore file
         let file = parse_gitignore("").unwrap();
-        
+
         // Act: Optimize the file
         let result = optimize_gitignore(&file);
-        
+
         // Assert: Should succeed with empty optimized file
         assert!(result.is_ok());
         let optimized = result.unwrap();
@@ -108,10 +108,10 @@ mod optimizer_tests {
     fn should_remove_consecutive_duplicates() {
         // Arrange: File with consecutive duplicates
         let file = parse_gitignore("*.log\n*.log").unwrap();
-        
+
         // Act: Optimize the file
         let result = optimize_gitignore(&file);
-        
+
         // Assert: Should remove duplicates
         assert!(result.is_ok());
         let optimized = result.unwrap();
@@ -123,10 +123,10 @@ mod optimizer_tests {
     fn should_preserve_different_patterns() {
         // Arrange: File with different patterns
         let file = parse_gitignore("*.log\n*.tmp").unwrap();
-        
+
         // Act: Optimize the file
         let result = optimize_gitignore(&file);
-        
+
         // Assert: Should preserve both patterns
         assert!(result.is_ok());
         let optimized = result.unwrap();
@@ -139,10 +139,10 @@ mod optimizer_tests {
     fn should_preserve_comments() {
         // Arrange: File with patterns and comments
         let file = parse_gitignore("*.log\n# comment\n*.tmp").unwrap();
-        
+
         // Act: Optimize the file
         let result = optimize_gitignore(&file);
-        
+
         // Assert: Should preserve comments
         assert!(result.is_ok());
         let optimized = result.unwrap();
@@ -154,10 +154,10 @@ mod optimizer_tests {
     fn should_handle_case_sensitive_patterns() {
         // Arrange: File with case-different patterns
         let file = parse_gitignore("build/\nBUILD/").unwrap();
-        
+
         // Act: Optimize the file
         let result = optimize_gitignore(&file);
-        
+
         // Assert: Should treat as different patterns
         assert!(result.is_ok());
         let optimized = result.unwrap();
@@ -174,14 +174,14 @@ mod entry_tests {
     fn should_create_pattern_entry() {
         // Arrange: Pattern string
         let pattern = "*.log";
-        
+
         // Act: Create entry
         let entry = GitignoreEntry::new(
             pattern.to_string(),
             EntryType::Pattern(pattern.to_string()),
             1,
         );
-        
+
         // Assert: Should create entry correctly
         assert_eq!(entry.original, pattern);
         assert_eq!(entry.line_number, 1);
@@ -192,14 +192,14 @@ mod entry_tests {
     fn should_create_comment_entry() {
         // Arrange: Comment string
         let comment = "# This is a comment";
-        
+
         // Act: Create entry
         let entry = GitignoreEntry::new(
             comment.to_string(),
             EntryType::Comment(comment.to_string()),
             2,
         );
-        
+
         // Assert: Should create entry correctly
         assert_eq!(entry.original, comment);
         assert_eq!(entry.line_number, 2);
@@ -210,14 +210,10 @@ mod entry_tests {
     fn should_create_blank_entry() {
         // Arrange: Blank line
         let blank = "";
-        
+
         // Act: Create entry
-        let entry = GitignoreEntry::new(
-            blank.to_string(),
-            EntryType::Blank,
-            3,
-        );
-        
+        let entry = GitignoreEntry::new(blank.to_string(), EntryType::Blank, 3);
+
         // Assert: Should create entry correctly
         assert_eq!(entry.original, blank);
         assert_eq!(entry.line_number, 3);
@@ -228,7 +224,7 @@ mod entry_tests {
     fn should_normalize_pattern_with_inline_comment() {
         // Arrange: Pattern with inline comment
         let pattern = "*.log # inline comment";
-        
+
         // Act: Create entry and get normalized pattern
         let entry = GitignoreEntry::new(
             pattern.to_string(),
@@ -236,7 +232,7 @@ mod entry_tests {
             1,
         );
         let normalized = entry.normalized_pattern();
-        
+
         // Assert: Should normalize correctly
         assert_eq!(normalized, Some("*.log ".to_string()));
     }
@@ -245,7 +241,7 @@ mod entry_tests {
     fn should_handle_pattern_without_inline_comment() {
         // Arrange: Pattern without inline comment
         let pattern = "*.log";
-        
+
         // Act: Create entry and get normalized pattern
         let entry = GitignoreEntry::new(
             pattern.to_string(),
@@ -253,7 +249,7 @@ mod entry_tests {
             1,
         );
         let normalized = entry.normalized_pattern();
-        
+
         // Assert: Should return original pattern
         assert_eq!(normalized, Some(pattern.to_string()));
     }
@@ -262,7 +258,7 @@ mod entry_tests {
     fn should_return_none_for_non_pattern_entries() {
         // Arrange: Comment entry
         let comment = "# comment";
-        
+
         // Act: Create entry and get normalized pattern
         let entry = GitignoreEntry::new(
             comment.to_string(),
@@ -270,7 +266,7 @@ mod entry_tests {
             1,
         );
         let normalized = entry.normalized_pattern();
-        
+
         // Assert: Should return None for non-pattern entries
         assert_eq!(normalized, None);
     }
@@ -283,7 +279,7 @@ mod stats_tests {
     fn should_initialize_empty_stats() {
         // Act: Create empty stats
         let stats = FileStats::new();
-        
+
         // Assert: Should have zero counts
         assert_eq!(stats.total_lines, 0);
         assert_eq!(stats.pattern_lines, 0);
@@ -301,10 +297,10 @@ mod stats_tests {
             EntryType::Pattern("*.log".to_string()),
             1,
         );
-        
+
         // Act: Update stats
         stats.update(&entry);
-        
+
         // Assert: Should increment correctly
         assert_eq!(stats.total_lines, 1);
         assert_eq!(stats.pattern_lines, 1);
@@ -321,10 +317,10 @@ mod stats_tests {
             EntryType::Comment("# comment".to_string()),
             1,
         );
-        
+
         // Act: Update stats
         stats.update(&entry);
-        
+
         // Assert: Should increment correctly
         assert_eq!(stats.total_lines, 1);
         assert_eq!(stats.pattern_lines, 0);
@@ -336,15 +332,11 @@ mod stats_tests {
     fn should_update_stats_with_blank_entry() {
         // Arrange: Empty stats and blank entry
         let mut stats = FileStats::new();
-        let entry = GitignoreEntry::new(
-            "".to_string(),
-            EntryType::Blank,
-            1,
-        );
-        
+        let entry = GitignoreEntry::new("".to_string(), EntryType::Blank, 1);
+
         // Act: Update stats
         stats.update(&entry);
-        
+
         // Assert: Should increment correctly
         assert_eq!(stats.total_lines, 1);
         assert_eq!(stats.pattern_lines, 0);
@@ -369,17 +361,17 @@ logs/
 build/
 BUILD/
 "#;
-        
+
         // Act: Parse and optimize
         let parse_result = parse_gitignore(content);
         assert!(parse_result.is_ok());
-        
+
         let file = parse_result.unwrap();
         let optimize_result = optimize_gitignore(&file);
         assert!(optimize_result.is_ok());
-        
+
         let optimized = optimize_result.unwrap();
-        
+
         // Assert: Should optimize correctly
         assert!(optimized.entries.len() < file.entries.len());
         assert_eq!(optimized.stats.pattern_lines, 4); // Reduced from 5
@@ -390,10 +382,10 @@ BUILD/
     fn should_handle_error_cases_gracefully() {
         // Arrange: Invalid content (if parser supports validation)
         let content = "*.log\ninvalid pattern with spaces\n*.tmp";
-        
+
         // Act: Parse and optimize
         let parse_result = parse_gitignore(content);
-        
+
         // Assert: Should handle gracefully (assuming parser accepts this)
         // This test demonstrates how to handle potential error cases
         if parse_result.is_ok() {
@@ -402,4 +394,4 @@ BUILD/
             assert!(optimize_result.is_ok());
         }
     }
-} 
+}

@@ -12,4 +12,4 @@ pub enum GixError {
     IoError(#[from] std::io::Error),
     #[error("Parse error: {0}")]
     ParseError(String),
-} 
+}

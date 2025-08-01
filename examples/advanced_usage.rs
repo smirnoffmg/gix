@@ -1,8 +1,7 @@
 use gix::{
     core::{
-        parse_gitignore, optimize_gitignore, analyze_gitignore,
-        PatternAnalyzer, PatternCategorizer, CommentGenerator,
-        PatternCategory, GitignoreAnalysis
+        analyze_gitignore, optimize_gitignore, parse_gitignore, CommentGenerator,
+        GitignoreAnalysis, PatternAnalyzer, PatternCategorizer, PatternCategory,
     },
     models::GitignoreFile,
 };
@@ -52,7 +51,8 @@ local/
 
     // Parse the gitignore file
     let original_file = parse_gitignore(content)?;
-    println!("Parsed {} entries ({} patterns, {} comments, {} blank lines)",
+    println!(
+        "Parsed {} entries ({} patterns, {} comments, {} blank lines)",
         original_file.entries.len(),
         original_file.stats.pattern_lines,
         original_file.stats.comment_lines,
@@ -63,7 +63,9 @@ local/
     // 1. Pattern Analysis
     println!("=== 1. Pattern Analysis ===");
     let analyzer = PatternAnalyzer::default();
-    let pattern_strings: Vec<String> = original_file.entries.iter()
+    let pattern_strings: Vec<String> = original_file
+        .entries
+        .iter()
         .filter_map(|entry| {
             if let gix::models::EntryType::Pattern(pattern) = &entry.entry_type {
                 Some(pattern.clone())
@@ -90,7 +92,7 @@ local/
     println!("=== 2. Pattern Categorization ===");
     let categorizer = PatternCategorizer::new();
     let categorized = categorizer.categorize_patterns(&pattern_strings);
-    
+
     for (category, patterns) in &categorized {
         println!("{}: {} patterns", category.display_name(), patterns.len());
         for pattern in patterns {
@@ -115,15 +117,16 @@ local/
     // 4. Comment Generation
     println!("=== 4. Comment Generation ===");
     let comment_generator = CommentGenerator::new();
-    
+
     for pattern in &pattern_strings {
         let analysis = analyzer.analyze_pattern(pattern);
         let category = categorizer.categorize_pattern(pattern);
-        
+
         if let Some(comment) = comment_generator.generate_pattern_comment(pattern, &analysis) {
             println!("{} -> {}", pattern, comment);
         } else {
-            let detailed_comment = comment_generator.generate_detailed_comment(pattern, &analysis, &category);
+            let detailed_comment =
+                comment_generator.generate_detailed_comment(pattern, &analysis, &category);
             println!("{} -> {}", pattern, detailed_comment);
         }
     }
@@ -142,28 +145,36 @@ local/
     println!("  - Wildcard patterns: {}", analysis.wildcard_patterns);
     println!("  - Globstar patterns: {}", analysis.globstar_patterns);
     println!("  - Case sensitive: {}", analysis.case_sensitive_patterns);
-    println!("  - Case insensitive: {}", analysis.case_insensitive_patterns);
+    println!(
+        "  - Case insensitive: {}",
+        analysis.case_insensitive_patterns
+    );
     println!("  - Conflicts: {}", analysis.conflict_count());
     println!();
 
     // 6. Optimization with Advanced Features
     println!("=== 6. Optimization Results ===");
     let optimized_file = optimize_gitignore(&original_file)?;
-    println!("Optimized {} entries ({} patterns, {} comments, {} blank lines)",
+    println!(
+        "Optimized {} entries ({} patterns, {} comments, {} blank lines)",
         optimized_file.entries.len(),
         optimized_file.stats.pattern_lines,
         optimized_file.stats.comment_lines,
         optimized_file.stats.blank_lines
     );
-    
+
     let reduction = original_file.entries.len() - optimized_file.entries.len();
     let reduction_percent = (reduction as f64 / original_file.entries.len() as f64) * 100.0;
-    println!("Reduced by {} entries ({:.1}%)", reduction, reduction_percent);
+    println!(
+        "Reduced by {} entries ({:.1}%)",
+        reduction, reduction_percent
+    );
     println!();
 
     // 7. Generate Organized Output
     println!("=== 7. Organized Output ===");
-    let organized_content = generate_organized_gitignore(&original_file, &categorizer, &comment_generator)?;
+    let organized_content =
+        generate_organized_gitignore(&original_file, &categorizer, &comment_generator)?;
     println!("Organized .gitignore:");
     println!("{}", organized_content);
 
@@ -173,12 +184,14 @@ local/
 fn generate_organized_gitignore(
     file: &GitignoreFile,
     categorizer: &PatternCategorizer,
-    comment_generator: &CommentGenerator
+    comment_generator: &CommentGenerator,
 ) -> Result<String, Box<dyn std::error::Error>> {
     let mut organized = String::new();
-    
+
     // Extract patterns
-    let pattern_strings: Vec<String> = file.entries.iter()
+    let pattern_strings: Vec<String> = file
+        .entries
+        .iter()
         .filter_map(|entry| {
             if let gix::models::EntryType::Pattern(pattern) = &entry.entry_type {
                 Some(pattern.clone())
@@ -187,30 +200,30 @@ fn generate_organized_gitignore(
             }
         })
         .collect();
-    
+
     // Categorize patterns
     let categorized = categorizer.categorize_patterns(&pattern_strings);
-    
+
     // Generate organized content
     for (category, patterns) in &categorized {
         // Add section header
         organized.push_str(&comment_generator.generate_section_header(category));
         organized.push('\n');
-        
+
         // Add category description if available
         if let Some(description) = comment_generator.generate_category_comment(category) {
             organized.push_str(&format!("# {}\n", description));
         }
-        
+
         // Add patterns
         for pattern in patterns {
             organized.push_str(pattern);
             organized.push('\n');
         }
-        
+
         organized.push('\n');
     }
-    
+
     // Add uncategorized patterns at the end
     if let Some(uncategorized) = categorized.get(&PatternCategory::Uncategorized) {
         if !uncategorized.is_empty() {
@@ -221,6 +234,6 @@ fn generate_organized_gitignore(
             }
         }
     }
-    
+
     Ok(organized)
-} 
+}

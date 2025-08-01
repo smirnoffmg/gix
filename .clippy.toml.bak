@@ -1,0 +1,8 @@
+# Clippy configuration
+# Allow some common patterns that might be false positives
+allow-comparison-to-zero = false
+allow-dbg-in-tests = true
+allow-expect-in-tests = true
+allow-panic-in-tests = true
+allow-print-in-tests = true
+allow-unwrap-in-tests = true

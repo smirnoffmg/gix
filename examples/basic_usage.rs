@@ -1,5 +1,5 @@
 use gix::{
-    core::{parse_gitignore, optimize_gitignore},
+    core::{optimize_gitignore, parse_gitignore},
     models::GixError,
 };
 
@@ -72,7 +72,10 @@ build/
     println!("Optimization results:");
     println!("  - Original lines: {}", original_file.entries.len());
     println!("  - Optimized lines: {}", optimized_file.entries.len());
-    println!("  - Lines removed: {}", original_file.entries.len() - optimized_file.entries.len());
+    println!(
+        "  - Lines removed: {}",
+        original_file.entries.len() - optimized_file.entries.len()
+    );
 
     Ok(())
-} 
+}

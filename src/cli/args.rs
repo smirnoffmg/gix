@@ -36,6 +36,22 @@ pub struct Args {
     /// Verbose output
     #[arg(short, long)]
     pub verbose: bool,
+
+    /// Analyze patterns and show categorization
+    #[arg(long)]
+    pub analyze: bool,
+
+    /// Detect and report pattern conflicts
+    #[arg(long)]
+    pub detect_conflicts: bool,
+
+    /// Generate comments for patterns
+    #[arg(long)]
+    pub generate_comments: bool,
+
+    /// Show pattern categories
+    #[arg(long)]
+    pub show_categories: bool,
 }
 
 #[derive(Clone, Debug, ValueEnum)]
@@ -46,6 +62,8 @@ pub enum OptimizationMode {
     Aggressive,
     /// Conservative optimization (only remove exact duplicates)
     Conservative,
+    /// Advanced optimization (use pattern analysis for better deduplication)
+    Advanced,
 }
 
 impl Args {
@@ -78,6 +96,10 @@ mod tests {
         assert!(!args.stats);
         assert!(!args.dry_run);
         assert!(!args.verbose);
+        assert!(!args.analyze);
+        assert!(!args.detect_conflicts);
+        assert!(!args.generate_comments);
+        assert!(!args.show_categories);
     }
 
     #[test]
@@ -104,5 +126,29 @@ mod tests {
     fn test_dry_run() {
         let args = Args::parse_from(&["gix", "--dry-run"]);
         assert!(!args.should_backup());
+    }
+
+    #[test]
+    fn test_analyze_flag() {
+        let args = Args::parse_from(&["gix", "--analyze"]);
+        assert!(args.analyze);
+    }
+
+    #[test]
+    fn test_detect_conflicts_flag() {
+        let args = Args::parse_from(&["gix", "--detect-conflicts"]);
+        assert!(args.detect_conflicts);
+    }
+
+    #[test]
+    fn test_generate_comments_flag() {
+        let args = Args::parse_from(&["gix", "--generate-comments"]);
+        assert!(args.generate_comments);
+    }
+
+    #[test]
+    fn test_show_categories_flag() {
+        let args = Args::parse_from(&["gix", "--show-categories"]);
+        assert!(args.show_categories);
     }
 } 

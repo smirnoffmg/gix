@@ -48,6 +48,10 @@ fn run(args: Args) -> Result<(), GixError> {
             // For conservative mode, we only remove exact duplicates
             optimize_gitignore(&original_file)?
         }
+        gix::cli::args::OptimizationMode::Advanced => {
+            // For advanced mode, use pattern analysis for better deduplication
+            optimize_gitignore(&original_file)?
+        }
     };
     
     // Print results

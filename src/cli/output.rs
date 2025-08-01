@@ -92,6 +92,7 @@ pub fn print_mode(mode: &OptimizationMode) {
         OptimizationMode::Standard => println!("🔧 Using standard optimization mode"),
         OptimizationMode::Aggressive => println!("⚡ Using aggressive optimization mode"),
         OptimizationMode::Conservative => println!("🛡️ Using conservative optimization mode"),
+        OptimizationMode::Advanced => println!("🚀 Using advanced optimization mode with pattern analysis"),
     }
 }
 

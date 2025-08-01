@@ -2,16 +2,20 @@
 *.log
 logs/
 
+# Python
+*.pyc
+__pycache__/
+venv/
+
+# Node.js
+node_modules/
+npm-debug.log*
+
 # Build outputs
 build/
-BUILD/
 dist/
 
-# Dependencies
-node_modules/
-**/node_modules/
-
-# IDE files
+# IDE
 .vscode/
 .idea/
 
@@ -19,14 +23,10 @@ node_modules/
 .DS_Store
 Thumbs.db
 
-# Temporary files
+# Custom patterns
+custom/
+local/
+
+# Conflicts
 *.tmp
-*.temp
-*.swp
-
-# Comments
-# This is a comment
-# Another comment
-
-# More patterns
-build/ 
+!important.tmp 

@@ -79,7 +79,7 @@ impl Args {
 
     /// Check if we should create a backup
     pub fn should_backup(&self) -> bool {
-        self.backup || !self.dry_run
+        self.backup
     }
 }
 
@@ -126,6 +126,12 @@ mod tests {
     fn test_dry_run() {
         let args = Args::parse_from(&["gix", "--dry-run"]);
         assert!(!args.should_backup());
+    }
+
+    #[test]
+    fn test_backup_with_dry_run() {
+        let args = Args::parse_from(&["gix", "--backup", "--dry-run"]);
+        assert!(args.should_backup());
     }
 
     #[test]

@@ -35,17 +35,9 @@ pub fn optimize_gitignore_with_analyzer(file: &GitignoreFile, analyzer: &Pattern
                 let analysis = &pattern_analyses[pattern];
                 let normalized = &analysis.normalized;
                 
-                // Check if we've seen an equivalent pattern
-                let mut should_add = true;
-                for seen_pattern in &seen_patterns {
-                    if analyzer.are_equivalent(pattern, seen_pattern) {
-                        should_add = false;
-                        break;
-                    }
-                }
-                
-                if should_add {
-                    seen_patterns.insert(pattern.clone()); // Use original pattern, not normalized
+                // Use normalized pattern for deduplication to improve performance
+                if !seen_patterns.contains(normalized) {
+                    seen_patterns.insert(normalized.clone());
                     optimized.add_entry(entry.clone());
                 }
             }
@@ -81,17 +73,9 @@ pub fn optimize_gitignore_aggressive_with_analyzer(file: &GitignoreFile, analyze
                 let analysis = &pattern_analyses[pattern];
                 let normalized = &analysis.normalized;
                 
-                // Check if we've seen an equivalent pattern
-                let mut should_add = true;
-                for seen_pattern in &seen_patterns {
-                    if analyzer.are_equivalent(pattern, seen_pattern) {
-                        should_add = false;
-                        break;
-                    }
-                }
-                
-                if should_add {
-                    seen_patterns.insert(pattern.clone());
+                // Use normalized pattern for deduplication to improve performance
+                if !seen_patterns.contains(normalized) {
+                    seen_patterns.insert(normalized.clone());
                     optimized.add_entry(entry.clone());
                 }
             }
@@ -152,17 +136,9 @@ pub fn optimize_gitignore_with_conflicts(file: &GitignoreFile) -> Result<(Gitign
                 let analysis = &pattern_analyses[pattern];
                 let normalized = &analysis.normalized;
                 
-                // Check if we've seen an equivalent pattern
-                let mut should_add = true;
-                for seen_pattern in &seen_patterns {
-                    if analyzer.are_equivalent(pattern, seen_pattern) {
-                        should_add = false;
-                        break;
-                    }
-                }
-                
-                if should_add {
-                    seen_patterns.insert(pattern.clone()); // Use original pattern, not normalized
+                // Use normalized pattern for deduplication to improve performance
+                if !seen_patterns.contains(normalized) {
+                    seen_patterns.insert(normalized.clone());
                     optimized.add_entry(entry.clone());
                 }
             }

@@ -45,7 +45,8 @@ impl PatternAnalysis {
         let is_absolute = pattern.starts_with('/');
         let has_wildcards = pattern.contains('*') || pattern.contains('?') || pattern.contains('[');
         let has_globstar = pattern.contains("**");
-        let is_case_sensitive = !pattern.chars().any(|c| c.is_uppercase());
+        // Gitignore patterns are case-sensitive by default
+        let is_case_sensitive = true;
         
         // Determine pattern type
         let pattern_type = if pattern.ends_with('/') {
